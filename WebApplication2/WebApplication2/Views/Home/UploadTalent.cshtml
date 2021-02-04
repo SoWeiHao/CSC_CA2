@@ -1,0 +1,134 @@
+﻿<div class="jumbotron">
+    <h1>Task 7</h1>
+</div>
+
+<input type="file" id="inputFile" name="filename">
+<br />
+Name
+<input type="text" id="Name" name="Name">
+<br />
+Reknown
+<input type="text" id="Reknown" name="Reknown">
+<br />
+Bio
+<input type="text" id="Bio" name="Bio">
+
+<div class="image-preview" id="imagePreview">
+    <img src="" alt="Image Preview" class="image-preview__image" />
+</div>
+<br />
+<br />
+<input type="button" class="btn btn-primary" value="Create Talent" id="tagButton" />
+
+
+@section scripts{
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1.24.min.js"></script>
+
+    <script>
+        jQuery('#tagButton').on('click', function () {
+            var bio = document.getElementById("Bio").value;
+            var reknown = document.getElementById("Reknown").value;
+            var name = document.getElementById("Name").value;
+            var shortname = document.getElementById("Name").value.replaceAll(" ", "-");
+            console.log(shortname);
+            var formData = new FormData();
+            formData.append('file', document.getElementById('inputFile').files[0]);
+            console.log(formData);
+            loadData();
+
+            function loadData() {
+                $.ajax({
+                    method:
+                        'POST',
+                    url: `/ImageRecognition/ImageRecognition`,
+                    data: formData,
+                    processData: false,  // tell jQuery not to process the data
+                    contentType: false,
+                    async: true,
+                    cache: false,
+                }).done(function (data) {
+                    console.log(data);
+                    if (data == false) {
+                        alert("Not a human!");
+                    } else {
+                        AWS.config.update({
+                            accessKeyId: 'AKIAJMSEJ5ZE3UINM7QA',
+                            secretAccessKey: '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',
+                            sessionToken: ''
+                        });
+                        AWS.config.region = 'us-east-1';
+                        var s3 = new AWS.S3({
+                            params: { Bucket: 'cscasgn-task-5' }
+                        });
+                        var file = document.getElementById('inputFile').files[0];
+                        if (file) {
+                            s3.putObject({
+                                Key: file.name,
+                                ContentType: file.type,
+                                Body: file,
+                                ACL: "public-read"
+                            },
+                                function (err, data) {
+                                    if (data !== null) {
+                                    }
+                                    else {
+                                        alert("Upload failed!");
+                                    }
+                                });
+                        }
+
+
+                        $.ajax({
+                            method:
+                                'POST',
+                            url: `/Talent/Upload?Bio=${bio}&Photo=${"https://cscasgn-task-5.s3-ap-southeast-1.amazonaws.com/" + file.name}&Name=${name}&Shortname=${shortname}&Reknown=${reknown}`,
+                            dataType: 'json',
+                            async: true,
+                            cache: false,
+                        }).done(function (data) {
+                            alert("Verified is a human,uploaded image to S3 and inserted a record to database.");
+                        }).fail(function (jqXHR) {
+                            if (parseInt(jqXHR.status) === 400) {
+                                window.alert("Error, please try again")
+                            }
+                        });
+
+                    }
+
+                }).fail(function (jqXHR) {
+                    if (parseInt(jqXHR.status) === 400) {
+                        window.alert("Error, please try again")
+                    }
+                });//End of ajax().done()//End of ajax().done()
+            }//End of loadData
+        })
+
+        const inputFile = document.getElementById('inputFile');
+        const previewElement = document.getElementById('imagePreview');
+        const previewImage = previewElement.querySelector(".image-preview__image")
+        var fileNameFirst = "";
+        var fileNameSecond = "";
+
+        inputFile.addEventListener("change", function () {
+            const file = this.files[0];
+
+            if (file) {
+                const reader = new FileReader();
+
+                reader.addEventListener("load", function () {
+                    console.log(this);
+                    previewImage.setAttribute("src", this.result);
+                });
+                reader.readAsDataURL(file);
+                var fullFileName = inputFile.value.split("\\").pop();
+                fileNameFirst = fullFileName.substr(0, fullFileName.lastIndexOf("."));
+                fileNameSecond = fullFileName.split(".").pop();
+                console.log(fullFileName);
+                console.log(fileNameFirst);
+                console.log(fileNameSecond);
+            } else {
+                window.alert("Invalid image file uploaded");
+            }
+        });
+    </script>
+}

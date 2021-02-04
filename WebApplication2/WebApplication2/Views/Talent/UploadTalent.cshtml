@@ -1,0 +1,111 @@
+﻿<div class="jumbotron">
+    <h1>Task 7</h1>
+</div>
+<input type="file" id="inputFile" name="filename">
+<div class="image-preview" id="imagePreview">
+    <img src="" alt="Image Preview" class="image-preview__image" />
+</div>
+<br />
+<br />
+<input type="button" class="btn btn-primary" value="Tag Image" id="tagButton" />
+<div class="row">
+    <div id="outputTagData"></div>
+</div>
+<br />
+<br />
+<br />
+<br />
+<div class="row">
+    <div id="outputData"></div>
+</div>
+
+@section scripts{
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1.24.min.js"></script>
+
+    <script>
+        jQuery('#tagButton').on('click', function () {
+            $('#outputData').empty();
+            loadData();
+            function loadData() {
+                $.ajax({
+                    method:
+                        'POST',
+                    url: `/ImageRecognition/ImageRecognition?fileName=${fileNameFirst}&fileExtension=${fileNameSecond}`,
+                    dataType: 'json',
+                    async: true,
+                    cache: false,
+                }).done(function (data) {
+                    console.log(data);
+                    if (data == false) {
+                        alert("Not a human!");
+                    } else {
+                        AWS.config.update({
+                            accessKeyId: 'AKIAJXVTE2D2B6ZKE3AA',
+                            secretAccessKey: '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',
+                            sessionToken: ''
+                        });
+                        AWS.config.region = 'us-east-1';
+                            var s3 = new AWS.S3({
+                                params: { Bucket: 'cscasgn-task-5' }
+                            });
+                            var file = document.getElementById('inputFile').files[0];
+                            if (file) {
+                                s3.putObject({
+                                    Key: file.name,
+                                    ContentType: file.type,
+                                    Body: file,
+                                    ACL: "public-read"
+                                },
+                                    function (err, data) {
+                                        if (data !== null) {
+                                            alert("Got it!");
+                                        }
+                                        else {
+                                            alert("Upload failed!");
+                                        }
+                                    });
+                            }
+                        
+
+                        alert("A human!");
+
+                    }
+                    var displayData = document.getElementById("outputTagData");
+                    displayData.append(data);
+                }).fail(function (jqXHR) {
+                    if (parseInt(jqXHR.status) === 400) {
+                        window.alert("Error, please try again")
+                    }
+                });//End of ajax().done()//End of ajax().done()
+            }//End of loadData
+        })
+
+        const inputFile = document.getElementById('inputFile');
+        const previewElement = document.getElementById('imagePreview');
+        const previewImage = previewElement.querySelector(".image-preview__image")
+        var fileNameFirst = "";
+        var fileNameSecond = "";
+
+        inputFile.addEventListener("change", function () {
+            const file = this.files[0];
+
+            if (file) {
+                const reader = new FileReader();
+
+                reader.addEventListener("load", function () {
+                    console.log(this);
+                    previewImage.setAttribute("src", this.result);
+                });
+                reader.readAsDataURL(file);
+                var fullFileName = inputFile.value.split("\\").pop();
+                fileNameFirst = fullFileName.substr(0, fullFileName.lastIndexOf("."));
+                fileNameSecond = fullFileName.split(".").pop();
+                console.log(fullFileName);
+                console.log(fileNameFirst);
+                console.log(fileNameSecond);
+            } else {
+                window.alert("Invalid image file uploaded");
+            }
+        });
+    </script>
+}

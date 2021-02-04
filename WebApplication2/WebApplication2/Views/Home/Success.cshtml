@@ -1,0 +1,112 @@
+﻿@{
+    ViewData["Title"] = "Subs";
+}
+
+<script src="https://js.stripe.com/v3/"></script>
+<link rel="stylesheet" href="~/css/global.css" />
+<link rel="stylesheet" href="~/css/normalize.css" />
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get("session_id")
+    let customerId;
+
+    if (sessionId) {
+        fetch("/checkout-session?sessionId=" + sessionId)
+            .then(function (result) {
+                return result.json()
+            })
+            .then(function (session) {
+                // We store the customer ID here so that we can pass to the
+                // server and redirect to customer portal. Note that, in practice
+                // this ID should be stored in your database when you receive
+                // the checkout.session.completed event. This demo does not have
+                // a database, so this is the workaround. This is *not* secure.
+                // You should use the Stripe Customer ID from the authenticated
+                // user on the server.
+                customerId = session.customer;
+                var plan = "Free";
+                if (session.amountTotal > 0) {
+                    plan = "Paid";
+                }
+                var today = new Date();
+                var dd = String(today.getDate()).padStart(2, '0');
+                var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+                var yyyy = today.getFullYear();
+
+                today = yyyy + '-' + mm + '-' + dd;
+                fetch('/api/userdetails', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        Email: session.customerEmail,
+                        SubsID: session.subscriptionId,
+                        Plan: plan,
+                        lastPaid: today
+                    }),
+                }).then(function (result) {
+                    console.log(result);
+                });
+                var sessionJSON = JSON.stringify(session, null, 2);
+                document.querySelector("pre").textContent = sessionJSON;
+            })
+            .catch(function (err) {
+                console.log('Error when fetching Checkout session', err);
+            });
+
+        // In production, this should check CSRF, and not pass the session ID.
+        // The customer ID for the portal should be pulled from the
+        // authenticated user on the server.
+        const manageBillingForm = document.querySelector('#manage-billing-form');
+        manageBillingForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            fetch('/customer-portal', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sessionId: sessionId
+                }),
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    window.location.href = data.url;
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        });
+    }
+
+</script>
+<body>
+    <div class="togethere-background"></div>
+    <div class="sr-root">
+        <div class="sr-main">
+            <header class="sr-header">
+                <div class="sr-header__logo"></div>
+            </header>
+            <div class="sr-payment-summary completed-view">
+                <h1>Your payment succeeded</h1>
+                <h4>
+                    View CheckoutSession response:
+                </h4>
+            </div>
+            <div class="completed-view-section">
+                <pre>
+
+            </pre>
+                <button onclick="window.location.href = '/';">Restart demo</button>
+
+                <form id="manage-billing-form">
+                    <button>Manage Billing</button>
+                </form>
+            </div>
+        </div>
+        <div class="sr-content">
+        </div>
+    </div>
+</body>
